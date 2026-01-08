@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Document</title>
+    </head>
+    <body>
+        <button id="button">点我</button>
+        <h1 id="text">mmm</h1>
+        <script>
+            const button = document.getElementById('button')
+            const el = document.getElementById('text')
+            button.onclick = () => {
+                // 第一次 DOM 更新
+                el.textContent = 'A'
+
+                Promise.resolve().then(() => {
+                    console.log('microtask')
+                })
+
+                requestAnimationFrame(() => {
+                    console.log('rAF')
+                    // 第二次 DOM 更新
+                    el.textContent = 'B'
+                })
+
+                setTimeout(() => {
+                    console.log('setTimeout')
+                }, 0)
+            }
+        </script>
+    </body>
+</html>

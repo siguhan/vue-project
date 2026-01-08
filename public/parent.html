@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <div id="editor"></div>
+
+        <script>
+            // 转义 HTML
+            function escapeHTML(html) {
+                return html
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;')
+            }
+
+            fetch('./1.html')
+                .then(res => res.text())
+                .then(html => {
+                    document.getElementById(
+                        'editor'
+                    ).innerHTML = `<pre>${escapeHTML(html)}</pre>`
+                })
+                .catch(err => console.error(err))
+        </script>
+    </body>
+</html>

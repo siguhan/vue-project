@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            *,
+            *::before,
+            *::after {
+                margin: 0;
+                box-sizing: border-box;
+            }
+            html,
+            body {
+                overflow: hidden;
+                width: 100%;
+                height: 100%;
+            }
+
+            .chart-box {
+                width: 100%;
+                height: 100%;
+            }
+        </style>
+        <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+        <script>
+            ;(() => {
+                let scriptEls = []
+
+                let chart = null
+                let resizeHandler = null
+
+                let isSave = false
+                let isShowSetWh = false
+
+                function initChart() {
+                    const chartEl = document.querySelector('.chart-box')
+                    if (!chartEl) return
+                    if (chart) {
+                        disposeChart()
+                    }
+                    chart = echarts.init(chartEl)
+                    window.__chart__ = chart
+
+                    resizeHandler = () => chart && chart.resize()
+                    window.addEventListener('resize', resizeHandler)
+                }
+
+                function disposeChart() {
+                    if (!chart) return
+                    window.removeEventListener('resize', resizeHandler)
+                    resizeHandler = null
+                    chart.dispose()
+                    chart = null
+                    window.__chart__ = null
+                }
+
+                document.addEventListener('DOMContentLoaded', initChart)
+                window.addEventListener('beforeunload', () => {
+                    disposeChart()
+                })
+
+                async function handle_message(ev) {
+                    let { action, cmd_id } = ev.data
+                    const send_message = payload =>
+                        parent.postMessage({ ...payload }, ev.origin)
+                    const send_reply = payload =>
+                        send_message({ ...payload, cmd_id })
+                    const send_ok = response =>
+                        send_reply({ action: 'cmd_ok', args: response })
+                    const send_error = (message, stack) =>
+                        send_reply({ action: 'cmd_error', message, stack })
+
+                    if (action === 'eval') {
+                        try {
+                            if (scriptEls.length) {
+                                scriptEls.forEach(el => {
+                                    document.head.removeChild(el)
+                                })
+                                scriptEls.length = 0
+                            }
+
+                            let { script: scripts } = ev.data.args
+                            if (typeof scripts === 'string') scripts = [scripts]
+
+                            for (const script of scripts) {
+                                const scriptEl =
+                                    document.createElement('script')
+                                scriptEl.type = 'module'
+                                const done = new Promise(resolve => {
+                                    window.__next__ = resolve
+                                })
+                                scriptEl.innerHTML = `
+                                const chart = window.__chart__;
+                                (async () => {
+                                try {
+                                    ${script}; // 用户代码
+                                    window.__next__({
+                                    option: typeof option !== 'undefined' ? option : null
+                                    });
+                                } catch (err) {
+                                    window.__next__({
+                                    __error__: { message: err.message, stack: err.stack }
+                                    });
+                                }
+                                })();`
+                                document.head.appendChild(scriptEl)
+                                scriptEl.onerror = err =>
+                                    send_error(err.message, err.stack)
+                                scriptEls.push(scriptEl)
+                                const result = await done
+                                if (result.__error__) {
+                                    chart.clear()
+                                    throw result.__error__
+                                }
+                                const { option } = result
+                                if (option) {
+                                    if (Object.keys(option).length !== 0) {
+                                        isShowSetWh = true
+                                        isSave = true
+                                        chart.setOption(option, true)
+                                    } else {
+                                        chart.clear()
+                                    }
+                                } else {
+                                    chart.clear()
+                                }
+                            }
+                            send_ok({ isSave, isShowSetWh })
+                        } catch (e) {
+                            send_error(e.message, e.stack)
+                        } finally {
+                            isSave = false
+                            isShowSetWh = false
+                        }
+                    }
+
+                    if (action === 'snapshot') {
+                        try {
+                            if (!chart) {
+                                send_error('chart not initialized')
+                                return
+                            }
+
+                            const canvas = chart.getRenderedCanvas({
+                                pixelRatio: Math.min(
+                                    window.devicePixelRatio,
+                                    2
+                                ),
+                                backgroundColor: 'transparent',
+                            })
+
+                            canvas.toBlob(blob => {
+                                if (!blob) {
+                                    send_error('canvas toBlob failed')
+                                    return
+                                }
+                                send_ok({ blob })
+                            })
+                        } catch (e) {
+                            send_error(e.message, e.stack)
+                        }
+                    }
+                }
+
+                window.addEventListener('message', handle_message, false)
+            })()
+        </script>
+
+        <script
+            async
+            src="https://cdn.jsdelivr.net/npm/es-module-shims@1.5.18/dist/es-module-shims.wasm.js"
+        ></script>
+
+        <script type="importmap">
+            {
+                "imports": {
+                    "vue": "https://play.vuejs.org/vue.runtime.esm-browser.js"
+                }
+            }
+        </script>
+    </head>
+    <body>
+        <div class="chart-box"></div>
+    </body>
+</html>

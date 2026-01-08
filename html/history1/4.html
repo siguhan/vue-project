@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>浏览器事件与渲染时序示例</title>
+        <style>
+            #input {
+                width: 200px;
+                font-size: 16px;
+            }
+        </style>
+    </head>
+    <body>
+        <input id="input" value="Hello" />
+        <button id="btn">点击切换</button>
+
+        <script>
+            // function test() {
+            //     console.log(x)
+            // }
+
+            // test() // ReferenceError
+            // let x = 10
+
+            const input = document.getElementById('input')
+            const btn = document.getElementById('btn')
+
+            console.log(input.value)
+            // 用于模拟 Vue nextTick（微任务阶段）
+            function nextTick(callback) {
+                Promise.resolve().then(callback)
+            }
+
+            // blur / focus 回调
+            input.addEventListener('blur', () => console.log('blur 回调'))
+            input.addEventListener('focus', () => console.log('focus 回调'))
+
+            console.log('js开始执行')
+
+            // input.value = 'aaaaaaa'
+            // input.focus()
+            // const length = input.value.length
+            // input.setSelectionRange(length, length)
+
+            function sleep(milliseconds) {
+                const start = Date.now()
+                while (Date.now() - start < milliseconds) {
+                    // 什么都不做，纯粹耗时间
+                }
+            }
+            // mousedown / mouseup / click 回调
+            btn.addEventListener('mousedown', () => {
+                // setTimeout(() => {
+                console.log('mousedown 回调')
+
+                input.type = input.type === 'password' ? 'text' : 'password'
+                // 同步 JS：DOM 更新
+                console.log('同步 JS: DOM 更新 -> A')
+
+                // 微任务
+                nextTick(() => {
+                    console.log(
+                        '微任务 nextTick 执行, input.value =',
+                        input.value
+                    )
+                })
+
+                // requestAnimationFrame
+                requestAnimationFrame(() => {
+                    console.log('rAF 执行前, input.value =', input.value)
+                    // input.focus()
+                    // input.setSelectionRange(
+                    //     input.value.length,
+                    //     input.value.length
+                    // )
+
+                    console.log('rAF 执行后, 光标已置末尾')
+                })
+
+                // 下一轮宏任务
+                setTimeout(() => {
+                    console.log('setTimeout 执行, input.value -> B')
+                }, 1000)
+            })
+            // })
+
+            btn.addEventListener('mouseup', () => console.log('mouseup 回调'))
+            btn.addEventListener('click', () => {
+                input.focus()
+                console.log('click 回调')
+            })
+
+            console.log('focus后')
+        </script>
+    </body>
+</html>
