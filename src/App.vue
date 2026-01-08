@@ -1,6 +1,5 @@
 <template>
     <RouterView />
-    // test git workflow
 </template>
 
 <script setup lang="ts">
@@ -8,6 +7,7 @@ import { onMounted, onUnmounted } from 'vue'
 import { useUserStore } from './stores/user'
 import { useViewportStore } from './stores/viewport'
 
+// new line for feature-test branch
 const userStore = useUserStore()
 const viewportStore = useViewportStore()
 
